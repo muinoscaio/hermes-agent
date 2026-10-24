@@ -33,6 +33,9 @@ mkdir -p "$TOOLS_DIR/.npm-cache" 2>/dev/null || true
 export PATH="$TOOLS_DIR/node_modules/.bin:$PATH"
 export npm_config_prefix="$TOOLS_DIR"
 export npm_config_cache="$TOOLS_DIR/.npm-cache"
+# A imagem liga NODE_OPTIONS com flags de profiling (--perf-basic-prof-*), que
+# fazem node imprimir lixo ("CodeRange,...") e quebram CLIs como o codex.
+unset NODE_OPTIONS
 echo "[guara] PATH de ferramentas: $TOOLS_DIR/node_modules/.bin"
 
 mkdir -p "$TS_DIR" 2>/dev/null || true
