@@ -10,7 +10,12 @@
 #  Portanto: nem /init nem main-wrapper. Chamamos o CLI do venv direto.
 #
 # O Tailscale roda em modo userspace (sem /dev/net/tun e sem CAP_NET_ADMIN) e
-# nunca bloqueia o processo principal — senão a readiness probe derruba o pod.
+# nunca bloqueia o processo principal.
+#
+# Modo de operação:
+#  - HERMES_GATEWAY=1  -> dashboard em background (para a readiness probe na
+#                          porta) + gateway (Telegram etc.) em foreground.
+#  - caso contrário    -> dashboard em foreground.
 set -e
 
 TS_DIR="${TS_STATE_DIR:-$HERMES_HOME/tailscale}"
@@ -61,13 +66,23 @@ if [ -n "$TS_AUTHKEY" ]; then
     fi
   ) &
 
-  echo "[guara] rede do tailnet em segundo plano; subindo o dashboard agora"
+  echo "[guara] rede do tailnet em segundo plano"
 fi
 
 if [ ! -x "$HERMES_BIN" ]; then
-  echo "[guara] ERRO: $HERMES_BIN nao existe; conteudo de /opt/hermes/.venv/bin:" >&2
+  echo "[guara] ERRO: $HERMES_BIN nao existe" >&2
   ls /opt/hermes/.venv/bin 2>&1 | head -20 >&2
   exit 1
+fi
+
+if [ -n "$HERMES_GATEWAY" ]; then
+  # O dashboard precisa responder na porta para a readiness probe continuar
+  # verde enquanto o gateway (bot) roda como processo principal.
+  echo "[guara] dashboard em background na porta $APP_PORT; gateway em foreground"
+  "$HERMES_BIN" dashboard --host 0.0.0.0 --port "$APP_PORT" --no-open \
+    >>"$TS_DIR/dashboard.log" 2>&1 &
+  sleep 2
+  exec "$HERMES_BIN" gateway run
 fi
 
 exec "$HERMES_BIN" dashboard --host 0.0.0.0 --port "$APP_PORT" --no-open
