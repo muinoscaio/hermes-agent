@@ -30,7 +30,8 @@ HERMES_BIN="/opt/hermes/.venv/bin/hermes"
 # npm/npx: binários e cache no volume persistente, nunca no overlay efêmero.
 TOOLS_DIR="${HERMES_TOOLS_DIR:-/data/tools}"
 mkdir -p "$TOOLS_DIR/.npm-cache" 2>/dev/null || true
-export PATH="$TOOLS_DIR/node_modules/.bin:$PATH"
+# npm com --prefix instala binarios em $TOOLS_DIR/bin (nao em node_modules/.bin)
+export PATH="$TOOLS_DIR/node_modules/.bin:$TOOLS_DIR/bin:$PATH"
 export npm_config_prefix="$TOOLS_DIR"
 export npm_config_cache="$TOOLS_DIR/.npm-cache"
 # A imagem liga NODE_OPTIONS com flags de profiling (--perf-basic-prof-*), que
