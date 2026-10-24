@@ -543,3 +543,30 @@ VOLUME [ "/opt/data" ]
 # intercepted by /init's POSIX shell.
 ENTRYPOINT [ "/opt/hermes/docker/entrypoint-dispatch.sh" ]
 CMD [ ]
+
+# ---------------------------------------------------------------------------
+# Guara Cloud: nó privado do tailnet, sem privilégios.
+# O tailscaled roda em modo userspace (--tun=userspace-networking), então não
+# precisa de /dev/net/tun nem de CAP_NET_ADMIN — exigências que o PaaS não dá.
+# ---------------------------------------------------------------------------
+USER root
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends ca-certificates curl iproute2 procps; \
+    curl -fsSL https://pkgs.tailscale.com/stable/debian/trixie.noarmor.gpg \
+      -o /usr/share/keyrings/tailscale-archive-keyring.gpg; \
+    curl -fsSL https://pkgs.tailscale.com/stable/debian/trixie.tailscale-keyring.list \
+      -o /etc/apt/sources.list.d/tailscale.list; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends tailscale; \
+    rm -rf /var/lib/apt/lists/*
+
+COPY --chmod=0755 docker/entrypoint-guara.sh /opt/hermes/docker/entrypoint-guara.sh
+
+# A Guara monta o volume persistente em /data e roda como UID 1000.
+ENV HERMES_HOME=/data
+ENV HERMES_UID=1000
+ENV HERMES_GID=1000
+
+ENTRYPOINT ["/opt/hermes/docker/entrypoint-guara.sh"]
+CMD []
