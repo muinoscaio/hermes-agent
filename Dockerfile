@@ -569,4 +569,5 @@ ENV HERMES_UID=1000
 ENV HERMES_GID=1000
 
 ENTRYPOINT ["/opt/hermes/docker/entrypoint-guara.sh"]
-CMD []
+# Guara: sem TTY, o processo principal tem de ser o dashboard em 0.0.0.0.
+CMD ["dashboard", "--host", "0.0.0.0", "--port", "8080", "--no-open"]
