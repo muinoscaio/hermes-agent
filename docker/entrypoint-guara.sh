@@ -120,6 +120,19 @@ if [ "$T3_SERVE" = "1" ]; then
       T3_PORT="${T3_PORT:-3773}"
       T3_DIR="${T3_HOME:-/data/t3}"
       mkdir -p "$T3_DIR" 2>/dev/null || true
+      # O CLI do T3 baixa um runtime proprio de ~300MB em $HOME/.t3. Como $HOME
+      # e disco EFEMERO neste container, esse download se repetia a cada boot:
+      # saturava CPU/IO (loadavg ~15 em 2 vCPU), a readiness probe estourava e a
+      # plataforma trocava o pod a cada ~60s (evicted_storage). Redireciona esse
+      # diretorio para o volume persistente: baixa uma vez, sobrevive ao restart.
+      T3_HOME_REAL="$T3_DIR/home"
+      mkdir -p "$T3_HOME_REAL" 2>/dev/null || true
+      if [ ! -L "$HOME/.t3" ]; then
+        rm -rf "$HOME/.t3" 2>/dev/null || true
+        ln -s "$T3_HOME_REAL" "$HOME/.t3" 2>/dev/null \
+          && echo "[guara] $HOME/.t3 -> $T3_HOME_REAL (runtime no volume)"
+      fi
+      export T3CODE_HOME="$T3_DIR"
       # O t3 sai com "fetch failed" se subir antes de DNS/rede do pod estarem
       # prontos - por isso espera a rede e, se cair, tenta de novo.
       n=0
@@ -131,8 +144,8 @@ if [ "$T3_SERVE" = "1" ]; then
       while [ "$n" -lt 6 ]; do
         echo "[guara] T3 serve tentativa $((n + 1)) em 127.0.0.1:$T3_PORT (dados em $T3_DIR)"
         cd "${T3_CWD:-$HERMES_HOME}" 2>/dev/null || cd "$HERMES_HOME" || exit 0
-        NODE_OPTIONS="--max-old-space-size=1024" \
-          "$TOOLS_DIR/bin/t3" serve --host 127.0.0.1 --port "$T3_PORT" \
+        NODE_OPTIONS="--max-old-space-size=256" \
+          nice -n 19 "$TOOLS_DIR/bin/t3" serve --host 127.0.0.1 --port "$T3_PORT" \
             --no-browser --base-dir "$T3_DIR" --auto-bootstrap-project-from-cwd
         echo "[guara] T3 saiu; nova tentativa em 5s"
         n=$((n + 1)); sleep 5
