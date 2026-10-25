@@ -105,25 +105,29 @@ fi
 # app do dono pareando pelo tailnet.
 # Escuta so em loopback; quem publica no tailnet e o `tailscale serve` acima.
 if [ "$T3_SERVE" = "1" ]; then
-  export PATH="$TOOLS_DIR/bin:$PATH"
-  if [ ! -x "$TOOLS_DIR/bin/t3" ]; then
-    echo "[guara] instalando T3 CLI (${T3_VERSION:-nightly}) em $TOOLS_DIR"
-    npm i -g "t3@${T3_VERSION:-nightly}" >>"$TOOLS_DIR/t3-install.log" 2>&1 \
-      && echo "[guara] T3 CLI instalado: $($TOOLS_DIR/bin/t3 --version 2>/dev/null)" \
-      || echo "[guara] falha ao instalar o T3 CLI (ver t3-install.log)"
-  fi
-  if [ -x "$TOOLS_DIR/bin/t3" ]; then
-    T3_PORT="${T3_PORT:-3773}"
-    T3_DIR="${T3_HOME:-/data/t3}"
-    mkdir -p "$T3_DIR" 2>/dev/null || true
-    echo "[guara] T3 serve em 127.0.0.1:$T3_PORT (dados em $T3_DIR)"
-    ( cd "${T3_CWD:-$HERMES_HOME}" 2>/dev/null || cd "$HERMES_HOME"; \
+  mkdir -p "${T3_HOME:-/data/t3}" 2>/dev/null || true
+  # Tudo em background: instalar o CLI (100+ MB) ou subir o servidor NAO pode
+  # atrasar o dashboard, senao a readiness probe falha e o pod nao fica pronto.
+  (
+    export PATH="$TOOLS_DIR/bin:$PATH"
+    if [ ! -x "$TOOLS_DIR/bin/t3" ]; then
+      echo "[guara] instalando T3 CLI (${T3_VERSION:-nightly}) em $TOOLS_DIR"
+      npm i -g "t3@${T3_VERSION:-nightly}" >>"$TOOLS_DIR/t3-install.log" 2>&1 \
+        && echo "[guara] T3 CLI instalado: $($TOOLS_DIR/bin/t3 --version 2>/dev/null)" \
+        || echo "[guara] falha ao instalar o T3 CLI (ver t3-install.log)"
+    fi
+    if [ -x "$TOOLS_DIR/bin/t3" ]; then
+      T3_PORT="${T3_PORT:-3773}"
+      T3_DIR="${T3_HOME:-/data/t3}"
+      mkdir -p "$T3_DIR" 2>/dev/null || true
+      echo "[guara] T3 serve em 127.0.0.1:$T3_PORT (dados em $T3_DIR)"
+      cd "${T3_CWD:-$HERMES_HOME}" 2>/dev/null || cd "$HERMES_HOME" || exit 0
       NODE_OPTIONS="--max-old-space-size=1024" \
-      exec "$TOOLS_DIR/bin/t3" serve --host 127.0.0.1 --port "$T3_PORT" \
-        --no-browser --base-dir "$T3_DIR" --auto-bootstrap-project-from-cwd \
-    ) >>"$T3_DIR/serve.log" 2>&1 &
-    sleep 1
-  fi
+        exec "$TOOLS_DIR/bin/t3" serve --host 127.0.0.1 --port "$T3_PORT" \
+          --no-browser --base-dir "$T3_DIR" --auto-bootstrap-project-from-cwd
+    fi
+  ) >>"${T3_HOME:-/data/t3}/serve.log" 2>&1 &
+  mkdir -p "${T3_HOME:-/data/t3}" 2>/dev/null || true
 fi
 
 if [ -n "$HERMES_GATEWAY" ]; then
