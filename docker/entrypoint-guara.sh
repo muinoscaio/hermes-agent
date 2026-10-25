@@ -120,11 +120,24 @@ if [ "$T3_SERVE" = "1" ]; then
       T3_PORT="${T3_PORT:-3773}"
       T3_DIR="${T3_HOME:-/data/t3}"
       mkdir -p "$T3_DIR" 2>/dev/null || true
-      echo "[guara] T3 serve em 127.0.0.1:$T3_PORT (dados em $T3_DIR)"
-      cd "${T3_CWD:-$HERMES_HOME}" 2>/dev/null || cd "$HERMES_HOME" || exit 0
-      NODE_OPTIONS="--max-old-space-size=1024" \
-        exec "$TOOLS_DIR/bin/t3" serve --host 127.0.0.1 --port "$T3_PORT" \
-          --no-browser --base-dir "$T3_DIR" --auto-bootstrap-project-from-cwd
+      # O t3 sai com "fetch failed" se subir antes de DNS/rede do pod estarem
+      # prontos - por isso espera a rede e, se cair, tenta de novo.
+      n=0
+      while [ "$n" -lt 30 ]; do
+        curl -s -o /dev/null --max-time 3 https://registry.npmjs.org && break
+        n=$((n + 1)); sleep 2
+      done
+      n=0
+      while [ "$n" -lt 6 ]; do
+        echo "[guara] T3 serve tentativa $((n + 1)) em 127.0.0.1:$T3_PORT (dados em $T3_DIR)"
+        cd "${T3_CWD:-$HERMES_HOME}" 2>/dev/null || cd "$HERMES_HOME" || exit 0
+        NODE_OPTIONS="--max-old-space-size=1024" \
+          "$TOOLS_DIR/bin/t3" serve --host 127.0.0.1 --port "$T3_PORT" \
+            --no-browser --base-dir "$T3_DIR" --auto-bootstrap-project-from-cwd
+        echo "[guara] T3 saiu; nova tentativa em 5s"
+        n=$((n + 1)); sleep 5
+      done
+      echo "[guara] T3 desistiu apos 6 tentativas"
     fi
   ) >>"${T3_HOME:-/data/t3}/serve.log" 2>&1 &
   mkdir -p "${T3_HOME:-/data/t3}" 2>/dev/null || true
