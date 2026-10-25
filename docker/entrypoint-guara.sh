@@ -80,7 +80,7 @@ if [ -n "$TS_AUTHKEY" ]; then
         || echo "[guara] serve falhou (ver serve.log)"
 
       # Servidor do T3 Code (opcional): publicado em http://<host>:<T3_PORT>
-      if [ -n "$T3_SERVE" ]; then
+      if [ "$T3_SERVE" = "1" ]; then
         tailscale --socket="$TS_SOCK" serve --bg --http="${T3_PORT:-3773}" "http://127.0.0.1:${T3_PORT:-3773}" \
           >>"$TS_DIR/serve.log" 2>&1 \
           && echo "[guara] t3 serve ok: http://${TS_HOSTNAME:-hermes-guara}:${T3_PORT:-3773} (tailnet)" \
@@ -101,7 +101,7 @@ fi
 # Servidor do T3 Code (opcional). Precisa sobreviver a restart do pod, por isso
 # fica aqui e nao num processo solto: o container nao tem systemd/supervisor.
 # Escuta so em loopback; quem publica no tailnet e o `tailscale serve` acima.
-if [ -n "$T3_SERVE" ] && [ -x "$TOOLS_DIR/bin/t3" ]; then
+if [ "$T3_SERVE" = "1" ] && [ -x "$TOOLS_DIR/bin/t3" ]; then
   T3_PORT="${T3_PORT:-3773}"
   T3_DIR="${T3_HOME:-/data/t3}"
   T3_CWD="${T3_CWD:-/data/hermes/workspaces/primeiro-projeto}"
