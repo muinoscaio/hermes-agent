@@ -108,6 +108,7 @@ if [ "$T3_SERVE" = "1" ] && [ -x "$TOOLS_DIR/bin/t3" ]; then
   mkdir -p "$T3_DIR" 2>/dev/null || true
   echo "[guara] t3 serve em 127.0.0.1:$T3_PORT (dados em $T3_DIR)"
   ( cd "$T3_CWD" 2>/dev/null || cd /data/hermes; \
+    NODE_OPTIONS="--max-old-space-size=256" \
     exec "$TOOLS_DIR/bin/t3" serve --host 127.0.0.1 --port "$T3_PORT" \
       --no-browser --base-dir "$T3_DIR" --auto-bootstrap-project-from-cwd \
   ) >>"$TS_DIR/t3-server.log" 2>&1 &
